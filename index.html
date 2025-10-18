@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body>
+    <div class="embeds-wrap">
+        <div class="contact-wrap" id="contact-form">
+        <!-- <form id="contact__form" method="POST" action="./mail.php"> -->
+            <form id="contact__form" action="submit" method="POST">
+                <input type="hidden" name="_next" value="https://prystech.co/thank-you.html"> 
+                <div class="contact-formwrap" >
+                <div class="contact-formfield">
+                    <input type="text" name="name" id="name" placeholder="Name*">
+                </div>
+                <div class="contact-formfield">
+                    <input type="text" name="email" id="email" placeholder="Email*">
+                </div>  
+                <div class="contact-formfield">
+                    <input type="text" name="phone" id="phone" placeholder="Phone*">
+                </div>
+                <!-- <div class="contact-formfield">
+                    <input type="text" name="company" id="company" placeholder="Company">
+                </div> -->
+                <!-- <div class="contact-formfield">
+                    <select name="Budget" id="Budget">
+                    <option value="0" disabled selected>Budget*</option>
+                    <option value="1">$1,000 - $5,000</option>
+                    <option value="2">$5,000 - $10,000</option>
+                    <option value="3">$10,000 - $15,000</option>
+                    <option value="4">$15,000 - $20,000</option>
+                    <option value="5">$20,000 - Above</option>
+                    </select>
+                </div> -->
+                <!-- <div class="contact-formfield">
+                    <input type="text" name="solution" id="solution" placeholder="Solution*">
+                </div> -->
+                <div class="contact-formfield message">
+                    <input type="text" name="message" id="message" placeholder="Describe your project requirements">
+                </div>
+                </div>
+                <div class="submit-btn">
+                <button type="submit" class="rr-btn">
+                    <span class="btn-wrap">
+                    <span class="text-one">Send Message</span>
+                    <span class="text-two">Send Message</span>
+                    </span>
+                </button>
+                </div>
+                <div id="response-message"></div>
+            </form>
+            </div>
+            <div class="calendar-wrap">
+            <!-- Calendly badge widget begin -->
+            <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+            <script src="https://assets.calendly.com/assets/external/widget.js" type="text/javascript" async></script>
+            <!-- <script type="text/javascript">window.onload = function() { Calendly.initBadgeWidget({ url: 'https://calendly.com/ali-prystech/book-a-meeting-prystech', text: 'Schedule time with me', color: '#0069ff', textColor: '#ffffff', branding: true }); }</script> -->
+            <!-- Calendly badge widget end -->
+        </div>
+    </div>
+</body>
+</html>
+
+
+<script>
+jQuery(document).ready(function ($) {
+  // ── Form validation ───────────────────────────────
+  function validateForm() {
+    // Clear old errors
+    $(".error-message").remove();
+    $("#contact__form input").removeClass("field-error");
+
+    const name = $("#name").val().trim();
+    const email = $("#email").val().trim();
+    const phone = $("#phone").val().trim();
+    // const message = $("#message").val().trim(); // optional
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phonePattern = /^[0-9+\-\s()]{7,20}$/;
+
+    let isValid = true;
+
+    if (name === "") {
+      showError("#name", "Please enter your name");
+      isValid = false;
+    }
+    if (email === "" || !emailPattern.test(email)) {
+      showError("#email", "Please enter a valid email");
+      isValid = false;
+    }
+    if (phone === "" || !phonePattern.test(phone)) {
+      showError("#phone", "Please enter a valid phone number");
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  async function sendFollowUpEmail(data) {
+    try {
+        const response = await fetch("/.netlify/functions/follow-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data), // ✅ FIXED: added `body:`
+        });
+
+        if (response.ok) {
+        console.log("📬 Follow-up email triggered successfully");
+        } else {
+        console.warn("⚠️ Failed to trigger follow-up email");
+        }
+    } catch (error) {
+        console.error("💥 Error calling Netlify Function:", error);
+    }
+  }
+
+  function showError(fieldSelector, message) {
+    $(fieldSelector)
+      .addClass("field-error")
+      .after(`<span class="error-message">${message}</span>`);
+  }
+
+  // ──     Calendly with close/scheduled tracking ────────
+  function openCalendlyWithTracking(data) {
+    let scheduled = false;
+    const { name, email, phone, message } = data;
+
+    Calendly.initPopupWidget({
+      url: `https://calendly.com/ali-prystech/book-a-meeting-prystech?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}&a1=${encodeURIComponent(phone)}&a2=${encodeURIComponent(message)}`,
+      onEventScheduled: function () {
+        scheduled = true;
+        console.log("✅ User scheduled a meeting");
+      }
+    });
+
+    // Detect close by watching for removal of .calendly-popup
+    setTimeout(() => {
+      const checkInterval = setInterval(() => {
+        if (!document.querySelector('.calendly-popup')) {
+          clearInterval(checkInterval);
+          if (!scheduled) {
+            console.log("🔥 Calendly was closed without booking");
+            sendFollowUpEmail(data);
+            // TODO: trigger follow-up email
+          }
+        }
+      }, 500);
+
+      // Safety timeout (5 min max)
+      setTimeout(() => clearInterval(checkInterval), 300000);
+    }, 1000);
+  }
+
+  // ── Form submit handler ───────────────────────────
+  $("#contact__form").on("submit", function (e) {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
+    const data = {
+      name: $("#name").val().trim(),
+      email: $("#email").val().trim(),
+      phone: $("#phone").val().trim(),
+      message: $("#message").val().trim()
+    };
+
+    openCalendlyWithTracking(data);
+  });
+});
+</script>
