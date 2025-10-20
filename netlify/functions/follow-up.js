@@ -56,14 +56,12 @@
 // };
 // netlify/functions/follow-up.js
 exports.handler = async (event) => {
-  // Log raw input for debugging
   console.log("📥 Received event:", {
     httpMethod: event.httpMethod,
     body: event.body,
     headers: event.headers
   });
 
-  // Always return success for testing
   return {
     statusCode: 200,
     body: JSON.stringify({ message: "Function works!" })
