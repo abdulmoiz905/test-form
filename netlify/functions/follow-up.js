@@ -1,5 +1,5 @@
 // netlify/functions/follow-up.js
-const fetch = require('node-fetch');
+// NO require needed — use native fetch
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -9,18 +9,17 @@ exports.handler = async (event) => {
   try {
     const { name, email, phone, message } = JSON.parse(event.body);
 
-    // Validate required fields
     if (!email || !name) {
       return { statusCode: 400, body: 'Name and email required' };
     }
 
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-      console.error('RESEND_API_KEY is missing');
+      console.error('❌ RESEND_API_KEY is missing in environment variables');
       return { statusCode: 500, body: 'Email service not configured' };
     }
 
-    const from = "ali.prystech@gmail.com"; // ← verify this domain in Resend!
+    const from = "ali.prystech@gmail.com";
     const subject = "Still Interested in Working Together?";
     const html = `
       <p>Hi ${name},</p>
@@ -30,7 +29,7 @@ exports.handler = async (event) => {
         <li><strong>Phone:</strong> ${phone || '—'}</li>
         <li><strong>Message:</strong> ${message || '—'}</li>
       </ul>
-      <p>👉 Feel free to <a href="https://calendly.com/ali-prystech/book-a-meeting-prystech">schedule a call</a> anytime!</p>
+      <p>👉 Feel free to schedule a call</a> anytime!</p>
       <p>Best,<br>The Prystech Team</p>
     `;
 
@@ -47,12 +46,12 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: 'Follow-up email queued' };
     } else {
       const errText = await response.text();
-      console.error('Resend error:', errText);
-      return { statusCode: 500, body: 'Failed to send email' };
+      console.error('Resend API error:', errText);
+      return { statusCode: 500, body: 'Failed to send email via Resend' };
     }
 
   } catch (error) {
-    console.error('Function error:', error);
-    return { statusCode: 500, body: 'Internal error' };
+    console.error('💥 Function crashed:', error.message, error.stack);
+    return { statusCode: 500, body: 'Internal server error' };
   }
 };
